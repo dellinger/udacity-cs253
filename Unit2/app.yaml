@@ -1,8 +1,9 @@
-application: unit2
+application: helloworld
 version: 1
-runtime: python
+runtime: python27
 api_version: 1
+threadsafe: true
 
-handler:
+handlers:
 - url: /.*
-  script: index.py
+  script: helloworld.app
