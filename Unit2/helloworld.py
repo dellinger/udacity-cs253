@@ -20,14 +20,26 @@ form="""
 </form>
 """
 
+Rot13html = """
+<form method="post">
+   
+   <br>
+   <label>
+      Enter in text to encode in rot13
+      <input type="textarea" name="rot" value="%(rot)s">
+   </label>
+   <br>
+   <input type="submit">
+</form>
+"""
+
 
 class MainPage(webapp2.RequestHandler):
     def write_form(self,error="", month="",day="", year=""):
         self.response.out.write(form % {"error" : error,
-                                      "month" : month,
-                                      "day" : day,
-                                      "year" : year})
-
+                                      "month" : escape_html(month),
+                                      "day" : escape_html(day),
+                                      "year" : escape_html(year)})
     def get(self):
         #self.response.headers['Content-Type'] = 'text/plain'
         self.write_form()
@@ -44,12 +56,36 @@ class MainPage(webapp2.RequestHandler):
     		    self.write_form("That doesn't look valid to me, friend.",
                         user_month,user_day,user_year)
         else:
-            self.response.write("Thanks! Thats a totally valid day!")
+            self.redirect("/thanks")
 
-app = webapp2.WSGIApplication([('/', MainPage)],
-                              debug=True)
+class ThanksHandler(webapp2.RequestHandler):
+   def get(self):
+       self.response.write("Thanks! Thats a totally valid day!")
+
+class Rot13Form(webapp2.RequestHandler):
+
+    def write_form(self,rot = ""):
+        self.response.out.write(Rot13html % {"rot" : rot})
+
+    def get(self):
+        self.write_form()
+
+    def post(self):
+        usrRot13 = rot13encrypt(self.request.get('rot'))
+  
+        self.write_form(usrRot13)
+
+app = webapp2.WSGIApplication([('/', MainPage),
+                               ('/thanks', ThanksHandler),
+                               ('/rot13', Rot13Form)],
+                               debug=True)
 
 
+
+
+
+def rot13encrypt(text):
+  return text.encode("rot13")
 
 months = ['January',
           'February',
@@ -82,3 +118,12 @@ def valid_year(year):
        year = int(year)
        if year > 1900 and year < 2020:
            return year
+   return None
+
+def escape_html(s):
+    s = s.replace('&','&amp;')
+    s = s.replace('>','&gt;')
+    s = s.replace('<','&lt;')
+    s = s.replace('"','&quot;')
+    
+    return s
