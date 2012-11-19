@@ -20,13 +20,36 @@ form="""
 </form>
 """
 
+signupForm = """
+<form method = "post">
+   <h1>Signup</h1>
+   <label>
+      Username
+      <input type="text" name="username">
+   </label>
+   <label>
+      Password
+      <input type="text" name="password">
+   </label>
+   <label>
+      Verify Password
+      <input type="text" name="verifypass">
+    </label>
+    <label>
+       Email(optional)
+       <input type="text" name="email">
+    <label>
+    <input type="submit>
+</form>
+"""
+
 Rot13html = """
 <form method="post">
    
    <br>
    <label>
-      Enter in text to encode in rot13
-      <input type="textarea" name="rot" value="%(rot)s">
+      <h1>Enter in text to encode in rot13</h1>
+      <textarea name="text">%(text)s</textarea>
    </label>
    <br>
    <input type="submit">
@@ -64,19 +87,27 @@ class ThanksHandler(webapp2.RequestHandler):
 
 class Rot13Form(webapp2.RequestHandler):
 
-    def write_form(self,rot = ""):
-        self.response.out.write(Rot13html % {"rot" : rot})
+    def write_form(self,text = ""):
+        self.response.out.write(Rot13html % {"text" : escape_html(text)})
 
     def get(self):
         self.write_form()
 
     def post(self):
-        usrRot13 = rot13encrypt(self.request.get('rot'))
+        usrRot13 = rot13encrypt(self.request.get('text'))
   
         self.write_form(usrRot13)
 
+class Signup(webapp2.RequestHandler):
+    def write_form(self):
+      self.response.out.write(signup.html)
+
+    def get():
+       self.write_form()
+
 app = webapp2.WSGIApplication([('/', MainPage),
                                ('/thanks', ThanksHandler),
+                               ('/signup',Signup),
                                ('/rot13', Rot13Form)],
                                debug=True)
 
