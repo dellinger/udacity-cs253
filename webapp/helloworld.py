@@ -19,9 +19,7 @@ class BaseHandler(webapp2.RequestHandler):
   def write(self, *a, **kw):
     self.response.out.write(*a, **kw)
 
-
-class MainPage(BaseHandler):
-
+class Birthday(BaseHandler)
     def get(self):
         #self.response.headers['Content-Type'] = 'text/plain'
         self.render("birthday.html")
@@ -45,6 +43,12 @@ class MainPage(BaseHandler):
             self.render("birthday.html", month = user_month, day = user_day, year = user_year, error = error )
         else:
             self.redirect("/thanks")
+
+class MainPage(BaseHandler):
+  def get(self):
+    self.render("index.html")
+
+
 
 class ThanksHandler(BaseHandler):
    def get(self):
@@ -105,6 +109,7 @@ class Welcome(BaseHandler):
          
 
 app = webapp2.WSGIApplication([('/', MainPage),
+                               ('/birthday',Birthday)
                                ('/thanks', ThanksHandler),
                                ('/signup',Signup),
                                ('/welcome',Welcome),
