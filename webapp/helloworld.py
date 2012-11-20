@@ -19,7 +19,7 @@ class BaseHandler(webapp2.RequestHandler):
   def write(self, *a, **kw):
     self.response.out.write(*a, **kw)
 
-class Birthday(BaseHandler)
+class Birthday(BaseHandler):
     def get(self):
         #self.response.headers['Content-Type'] = 'text/plain'
         self.render("birthday.html")
@@ -109,9 +109,9 @@ class Welcome(BaseHandler):
          
 
 app = webapp2.WSGIApplication([('/', MainPage),
-                               ('/birthday',Birthday)
+                               ('/birthday',Birthday),
                                ('/thanks', ThanksHandler),
-                               ('/signup',Signup),
+                               ('/unit2/signup',Signup),
                                ('/welcome',Welcome),
                                ('/rot13', Rot13Form)],
                                debug=True)
