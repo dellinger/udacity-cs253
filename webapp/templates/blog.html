@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+   <head>
+      <title>Blog</title>
+      <link href="/stylesheets/main.css" rel="stylesheet" type="text/css" />
+   </head>
+
+   <body>
+    <h1> {David Ellinger's Blog} <h1>
+    <h5>[<a href="/blog/newpost">Create a New Post</a>]</h5>
+    {% for blog in blogs %}
+       <div class="post">
+       	<h3>{{blog.subject}}</h3>
+       	<div class="content">{{blog.blogtext}}</div>
+       	<br>
+    {% endfor %}
+
+   </body>
+
+</html>

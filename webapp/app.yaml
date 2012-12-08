@@ -9,5 +9,10 @@ libraries:
   version: latest
 
 handlers:
+
+- url: /stylesheets
+  static_dir: stylesheets
+
 - url: /.*
   script: helloworld.app
+

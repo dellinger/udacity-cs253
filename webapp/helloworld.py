@@ -3,27 +3,30 @@ import re
 import os
 
 import jinja2
+from google.appengine.ext import db
 
 jinja_env = jinja2.Environment(autoescape=True,
     loader=jinja2.FileSystemLoader(os.path.join(os.path.dirname(__file__), 'templates')))
 
 
-def render_str(template, **params):
-  t = jinja_env.get_template(template)
-  return t.render(params)
+
 
 class BaseHandler(webapp2.RequestHandler):
-  def render(self,template, **kw):
-    self.response.out.write(render_str(template, **kw))
+    def write(self, *a, **kw):
+        self.response.out.write(*a, **kw)
 
-  def write(self, *a, **kw):
-    self.response.out.write(*a, **kw)
+    def render_str(self, template, **params):
+        t = jinja_env.get_template(template)
+        return t.render(params)
 
+    def render(self, template,**kw):
+        self.write(self.render_str(template, **kw))
+
+                   
 class Birthday(BaseHandler):
     def get(self):
         #self.response.headers['Content-Type'] = 'text/plain'
         self.render("birthday.html")
-
 
     def post(self):
         user_month = self.request.get('month')
@@ -45,14 +48,12 @@ class Birthday(BaseHandler):
             self.redirect("/thanks")
 
 class MainPage(BaseHandler):
-  def get(self):
-    self.render("index.html")
-
-
+    def get(self):
+        self.render("index.html")
 
 class ThanksHandler(BaseHandler):
-   def get(self):
-       write("Thanks! Thats a totally valid day!")
+    def get(self):
+        write("Thanks! Thats a totally valid day!")
 
 class Rot13Form(BaseHandler):
 
@@ -100,20 +101,67 @@ class Signup(BaseHandler):
             self.redirect('/welcome?username=' + username)
 
 class Welcome(BaseHandler):
-  def get(self):
-    username = self.request.get('username')
-    if valid_username(username):
-      self.render("welcome.html", username = username)
-    else:
-      self.redirect("/signup")
-         
+    def get(self):
+        username = self.request.get('username')
+        if valid_username(username):
+            self.render("welcome.html", username = username)
+        else:
+            self.redirect("/signup")
+
+   # Task - Build a blog
+   # - Front page that lists entries
+   # - Form to submit new entries
+   # - Permalink page for entries
+   # - Title / Date then HR and post
+   # - /blog/newpost to post blog stuff
+################
+# BLOG
+################
+class BlogEntry(db.Model):
+    subject = db.StringProperty(required=True)
+    blogtext = db.TextProperty(required=True)
+    created = db.DateTimeProperty(auto_now_add=True)
+
+
+class BlogNewPost(BaseHandler):
+    def get(self):
+        self.render("newBlogPost.html")
+
+    def post(self):
+        subject = self.request.get("subject")
+        content = self.request.get("content")
+
+
+        params = dict(subject = subject,
+                      content = content)
+
+        if (subject and content):
+            b = BlogEntry(subject=subject,blogtext=content)
+            b_key = b.put()
+            self.redirect("%d" % b_key.id())
+        else:
+            params["error"] = "Need to fill out all fields..."
+            self.render("newBlogPost.html",**params)
+
+class BlogPermalink(BaseHandler):
+    def get(self,blog_id):
+        s = BlogEntry.get_by_id(int(blog_id))
+        self.render("blog.html",blogs=[s])
+
+class Blog(BaseHandler):
+    def get(self):
+        s = db.GqlQuery("SELECT * FROM BlogEntry ORDER BY created DESC")
+        self.render("blog.html",blogs=s)
 
 app = webapp2.WSGIApplication([('/', MainPage),
                                ('/birthday',Birthday),
                                ('/thanks', ThanksHandler),
                                ('/unit2/signup',Signup),
                                ('/welcome',Welcome),
-                               ('/rot13', Rot13Form)],
+                               ('/rot13', Rot13Form),
+                               ('/blog/newpost',BlogNewPost),
+                               ('/blog/(\d+)',BlogPermalink),
+                               ('/blog',Blog)],
                                debug=True)
 
 

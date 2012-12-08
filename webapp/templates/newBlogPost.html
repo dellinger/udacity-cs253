@@ -1,0 +1,25 @@
+<html>
+   <head>
+      <title>Blog Entry</title>
+      <link href="/stylesheets/main.css" rel="stylesheet" type="text/css" />
+   </head>
+
+   <body>
+    
+    <form method="post">
+	    <h1 align="center"> David Ellinger Blog </h1>
+	   	<h3> New Blog Post </h3>
+	   	<div name="subject">Subject</div>
+	   	<input type="text" name="subject" value="{{subject}}">
+	   	<br>
+	   	<div name="blog">Blog</div>
+	   	<textarea name="content">{{content}}</textarea>
+	   	<br>
+	   	<div style="color: red">{{error}}</div>
+	   	<input type="submit">
+    </form>
+
+
+   </body>
+
+</html>
