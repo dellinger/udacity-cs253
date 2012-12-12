@@ -7,7 +7,12 @@
 
    <body>
     <h1><a href="/blog"> {David Ellinger's Blog}</a> <h1>
-    <h5>[<a href="/blog/newpost">Create a New Post</a>]</h5>
+    <h5>
+      [<a href="/blog/newpost">Create a New Post</a>]
+      [<a href="/blog/signup">Signup</a>]
+      [<a href="/blog/login">Login</a>]
+      [<a href="/blog/logout">Logout</a>]
+    </h5>
     {% for blog in blogs %}
        <div class="post">
        	<h3>{{blog.subject}}
