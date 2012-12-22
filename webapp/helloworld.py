@@ -5,6 +5,7 @@ import hashlib
 import random
 from string import letters
 import hmac
+import json
 
 import jinja2
 from google.appengine.ext import db
@@ -171,6 +172,33 @@ class Blog(BlogHandler):
     def get(self):
         s = db.GqlQuery("SELECT * FROM BlogEntry ORDER BY created DESC")
         self.render("blog.html",blogs=s)
+
+class JsonPostHandler(BlogHandler):
+    def get(self):
+        self.response.headers['Content-Type'] = 'application/json'
+        list = []
+        blogs = db.GqlQuery("SELECT * FROM BlogEntry ORDER BY created DESC LIMIT 10")
+        for blog in blogs:
+            blogDict = {}
+            blogDict["content"] = blog.blogtext
+            blogDict["created"] = blog.created.strftime("%a %b %d %H:%M:%S %Y")
+           # blogDict["last_modified"] = blog.last_modified.strftime("%a %b %d %H:%M:%S %Y")
+            blogDict["subject"] = blog.subject
+            list.append(blogDict)
+        self.write(json.dumps(list))
+
+class NewPostJson(BlogHandler):
+    def get(self,blog_id):
+        s = BlogEntry.get_by_id(int(blog_id))
+        
+        blogDict = {}
+        blogDict["content"] = s.blogtext
+        blogDict["created"] = s.created.strftime("%a %b %d %H:%M:%S %Y")
+        # blogDict["last_modified"] = blog.last_modified.strftime("%a %b %d %H:%M:%S %Y")
+        blogDict["subject"] = s.subject
+        
+        self.write(json.dumps(blogDict))
+
 
 ###############################################
 # Regular Expression Validation
@@ -356,5 +384,8 @@ app = webapp2.WSGIApplication([('/', MainPage),
                                ('/rot13', Rot13Form),
                                ('/blog/newpost',BlogNewPost),
                                ('/blog/(\d+)',BlogPermalink),
-                               ('/blog',Blog)],
+                               ('/blog',Blog),
+                               ('/blog/.json',JsonPostHandler),
+                               ('/blog/(\d+).json',NewPostJson)
+                               ],
                                debug=True)
