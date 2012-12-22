@@ -6,12 +6,12 @@
    </head>
 
    <body>
-    <h1><a href="/blog"> {David Ellinger's Blog}</a> <h1>
+    <h1><a href="/"> {David Ellinger's Blog}</a> <h1>
     <h5>
-      [<a href="/blog/newpost">Create a New Post</a>]
-      [<a href="/blog/signup">Signup</a>]
-      [<a href="/blog/login">Login</a>]
-      [<a href="/blog/logout">Logout</a>]
+      [<a href="/newpost">Create a New Post</a>]
+      [<a href="/signup">Signup</a>]
+      [<a href="/login">Login</a>]
+      [<a href="/logout">Logout</a>]
     </h5>
     {% for blog in blogs %}
        <div class="post">
@@ -21,7 +21,5 @@
        	<div class="content">{{blog.blogtext}}</div>
        	<br>
     {% endfor %}
-
    </body>
-
 </html>
