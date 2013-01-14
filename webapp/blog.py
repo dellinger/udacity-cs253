@@ -9,12 +9,15 @@ import json
 
 import jinja2
 from google.appengine.ext import db
+from google.appengine.api import memcache
+from datetime import datetime, timedelta
 
 jinja_env = jinja2.Environment(autoescape=True,
     loader=jinja2.FileSystemLoader(os.path.join(os.path.dirname(__file__), 'templates')))
 
 # Normally would be stored in another module
 secret = 'bo5GWcSVL.y2rYXjRf21X'
+CACHE = {}
 
 
 # Main Handler for Blog
@@ -177,9 +180,56 @@ class BlogPermalink(BlogHandler):
         s = BlogEntry.get_by_id(int(blog_id))
         self.render("blog.html",blogs=[s])
 
+def age_set(key,val):
+    memcache.set(key,(val,datetime.utcnow()))
+
+def age_get(key):
+    result = memcache.get(key)
+    if result:
+        val, save_time = result
+        age = (datetime.utcnow() - save_time).total_seconds()
+    else:
+        val,age = None, 0
+    return val,age
+
+def add_post(post):
+    post.put()
+    get_posts(update = True) 
+    return str(post.key().id())
+
+def get_posts(update = False):
+    q = db.GqlQuery("SELECT * FROM BlogEntry ORDER BY created DESC")
+    mc_key = "BLOGS"
+
+    posts, age = age_get(mc_key)
+    if update or posts is None: 
+        posts = list(q)
+        age_set(mc_key,posts)
+
+    return posts,age
+
+def age_str(age):
+    s = "queried %s seconds ago"
+    age = int(age)
+    if age == 1:
+        s = s.replace("seconds", "second")
+    return s % age
+
 class Blog(BlogHandler):
     def get(self):
-        s = db.GqlQuery("SELECT * FROM BlogEntry ORDER BY created DESC")
+        posts,age = get_posts()
+        if self.format == "html":
+            self.render("blog.html",blogs=posts, age = age_str(age))
+        else:
+            return self.render_json([p.as_dict() for p in posts])        
+
+
+        key = "blogs"
+        blogs, age = memcache.get(key)
+        if blogs is None:
+            s = db.GqlQuery("SELECT * FROM BlogEntry ORDER BY created DESC")
+            blogs = list(blogs)
+            memcache.set(key,blogs)
         self.render("blog.html",blogs=s)
 
 class JsonPostHandler(BlogHandler):
@@ -204,6 +254,8 @@ class NewPostJson(BlogHandler):
         # blogDict["last_modified"] = blog.last_modified.strftime("%a %b %d %H:%M:%S %Y")
         blogDict["subject"] = s.subject
         self.render_json(blogDict)
+
+
 
 ###############################################
 # Regular Expression Validation
