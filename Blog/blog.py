@@ -80,12 +80,12 @@ class BlogHandler(webapp2.RequestHandler):
                 self.format = 'html'
 
 class MainPage(BlogHandler):
-      def get(self):
-          self.write('Hello, Udacity!')
+    def get(self):
+        self.write('Hello, Udacity!')
 
     ##### user stuff
 def make_salt(length = 5):
-        return ''.join(random.choice(letters) for x in xrange(length))
+    return ''.join(random.choice(letters) for x in xrange(length))
 
 def make_pw_hash(name, pw, salt = None):
         if not salt:
@@ -152,7 +152,7 @@ def add_post(ip, post):
         return str(post.key().id())
 
 def get_posts(update = False):
-        q = greetings = Post.all().order('-created').fetch(limit = 10)
+        q = Post.all().order('-created').fetch(limit = 10)
         mc_key = 'BLOGS'
 
         posts, age = age_get(mc_key)
@@ -170,12 +170,12 @@ def age_str(age):
 
 def blog_flush():
         memcache.flush_all()
+        self.redirect('/blog')
 
 class FlushHandler(BlogHandler):
         def get(self):
             blog_flush()
-
-            self.redirect('/blog')
+            self.render('/blog')
 
 class Post(db.Model):
         subject = db.StringProperty(required = True)

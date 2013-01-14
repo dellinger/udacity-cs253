@@ -1,0 +1,192 @@
+body {
+    color: #333333;
+    font-family: "Rosarivo",serif;
+    margin: 0 auto;
+    padding: 10px;
+    width: 700px;
+}
+.error {
+    color: red;
+}
+label {
+    display: block;
+    font-size: 20px;
+    margin-bottom: 20px;
+}
+input[type="text"], input[type="password"] {
+    font-family: "Garamond",serif;
+    font-size: 20px;
+    padding: 2px;
+    width: 600px;
+}
+textarea {
+    font-family: "Garamond",serif;
+    font-size: 17px;
+    height: 200px;
+    width: 600px;
+}
+input[type="submit"] {
+    font-size: 15px;
+}
+hr {
+    margin: 20px auto;
+}
+.post {
+    margin-top: 80px;
+}
+.login-area {
+    color: gray;
+    float: right;
+    font-size: 12px;
+    margin-top: 30px;
+}
+.login-area a {
+    -moz-transition: all 0.3s ease-out 0s;
+    color: gray;
+    cursor: pointer;
+    font-size: 12px;
+    font-style: italic;
+    text-decoration: none;
+}
+.login-area a:hover {
+    -moz-transition: all 0.3s ease-out 0s;
+    color: #333333;
+    text-shadow: 0 0 20px #333333;
+}
+h1 a, h5 a {
+    -moz-transition: all 0.3s ease-out 0s;
+    color: inherit;
+    text-decoration: none;
+}
+h1 a:hover, h5 a:hover {
+    -moz-transition: all 0.3s ease-out 0s;
+    text-shadow: 1px 1px 35px #333333;
+}
+h1 span {
+    font-size: 14px;
+}
+.post h3 {
+    border-bottom: 4px solid #999999;
+    font-size: 20px;
+    font-variant: small-caps;
+    font-weight: bold;
+    margin-bottom: 5px;
+    text-shadow: 0 0 40px #333333;
+}
+.post h3 span {
+    float: right;
+    font-size: 14px;
+    font-style: italic;
+    font-variant: normal;
+    font-weight: normal;
+    padding-top: 8px;
+}
+.permalink {
+    text-align: right;
+}
+.permalink a {
+    -moz-transition: all 0.3s ease-out 0s;
+    color: gray;
+    cursor: pointer;
+    font-size: 12px;
+    font-style: italic;
+    text-decoration: none;
+}
+.permalink a:hover {
+    -moz-transition: all 0.3s ease-out 0s;
+    color: #333333;
+    text-shadow: 0 0 20px #333333;
+}
+.content {
+    background: none repeat scroll 0 0 #E4DFDF;
+    box-shadow: 0 0 10px #888888;
+    font-size: 12pt;
+    margin-top: 40px;
+    padding: 10px;
+    word-wrap: break-word;
+}
+.content p {
+    margin: 0;
+}
+.content p + p {
+    margin: 25px 0 0;
+}
+.content blockquote {
+    border-left: 3px solid #999999;
+    font-size: 16px;
+    font-style: italic;
+    padding-left: 5px;
+    text-shadow: 0 0 30px #555555;
+}
+.content hr {
+    background: none repeat scroll 0 0 #C5C5C5;
+    border: medium none;
+    height: 1px;
+    margin-left: -10px;
+    width: 103%;
+}
+.normal {
+    white-space: normal;
+}
+.content ul {
+    list-style: none outside none;
+    margin: 0 0 0 -20px;
+}
+.content ul li:before {
+    content: "» ";
+}
+.content ul li a {
+    -moz-transition: all 0.3s ease-out 0s;
+    color: #333333;
+    cursor: pointer;
+    text-decoration: none;
+}
+.content ul li a:visited {
+    -moz-transition: all 0.3s ease-out 0s;
+    color: #333333;
+    cursor: pointer;
+    text-decoration: none;
+}
+.content ul li a:hover {
+    -moz-transition: all 0.3s ease-out 0s;
+    color: #333333;
+    text-shadow: 0 0 20px #333333;
+}
+#footer {
+    border-top: 1px solid #888888;
+    height: 30px;
+    margin-top: 100px;
+    padding-top: 5px;
+}
+#queried {
+    color: #777777;
+    float: right;
+    font-size: 9pt;
+    text-align: right;
+    width: 300px;
+}
+#tt {
+    background: none repeat scroll 0 0 #555555;
+    border-radius: 10px 0 10px 10px;
+    display: block;
+    padding: 8px;
+    position: absolute;
+}
+#ttcont {
+    background: none repeat scroll 0 0 #555555;
+    color: #FFFFFF;
+    display: block;
+    font-size: 9pt;
+}
+#ttcont ul {
+    margin: 0 0 0 -15px;
+}
+.tooltip {
+    border-bottom: 1px dotted #990000;
+    color: #862222;
+    cursor: pointer;
+    font-size: 55%;
+    margin-left: 400px;
+    padding-bottom: 1px;
+}
+
