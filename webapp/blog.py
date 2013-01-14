@@ -1,358 +1,375 @@
-import webapp2
-import re
 import os
-import hashlib
+import re
 import random
-from string import letters
+import hashlib
 import hmac
+import logging
 import json
-
-import jinja2
-from google.appengine.ext import db
-from google.appengine.api import memcache
 from datetime import datetime, timedelta
+from string import letters
 
-jinja_env = jinja2.Environment(autoescape=True,
-    loader=jinja2.FileSystemLoader(os.path.join(os.path.dirname(__file__), 'templates')))
+import webapp2
+import jinja2
 
-# Normally would be stored in another module
-secret = 'bo5GWcSVL.y2rYXjRf21X'
-CACHE = {}
+from google.appengine.api import memcache
+from google.appengine.ext import db
 
+template_dir = os.path.join(os.path.dirname(__file__), 'templates')
+jinja_env = jinja2.Environment(loader = jinja2.FileSystemLoader(template_dir),
+                                   autoescape = False)
 
-# Main Handler for Blog
+secret = 'fart'
 
-class BlogHandler(webapp2.RequestHandler):
-    def write(self, *a, **kw):
-        self.response.out.write(*a, **kw)
+#DEBUG = bool(os.environ['SERVER_SOFTWARE'].startswith('Development'))
+#if DEBUG:
+        #logging.getlogger().setLevel(logging.DEBUG)
 
-    def render_str(self, template, **params):
+def render_str(template, **params):
         t = jinja_env.get_template(template)
         return t.render(params)
 
-    def render(self, template,**kw):
-        self.write(self.render_str(template, **kw))
+def make_secure_val(val):
+        return '%s|%s' % (val, hmac.new(secret, val).hexdigest())
 
-    def render_json(self, d):
-        json_txt = json.dumps(d)
-        self.response.headers['Content-Type'] = 'application/json; charset=UTF-8'
-        self.write(json_txt)
-    
-    # Secures cookie
-    def set_secure_cookie(self,name,val):
-        cookie_val = make_secure_val(val)
-        self.response.headers.add_header('Set-Cookie','%s=%s; Path=/' % (name,cookie_val))
+def check_secure_val(secure_val):
+        val = secure_val.split('|')[0]
+        if secure_val == make_secure_val(val):
+            return val
 
-    def read_secure_cookie(self,name):
-        cookie_val = self.request.cookies.get(name)
-        return cookie_val and check_secure_val(cookie_val)
-    
-    def login(self,user):
-        self.set_secure_cookie('user_id',str(user.key().id()))
+class BlogHandler(webapp2.RequestHandler):
+        def write(self, *a, **kw):
+            self.response.out.write(*a, **kw)
 
-    def logout(self):
-        self.response.headers.add_header('Set-Cookie','user_id=; Path=/')
-    
-    #Not necessarily needed
-    # after every request initalize is called
-    # Will check for cookie on each page
-    def initialize(self,*a,**kw):
-        webapp2.RequestHandler.initialize(self,*a,**kw)
-        uid = self.read_secure_cookie('user_id')
-        self.user = uid and User.by_id(int(uid))
+        def render_str(self, template, **params):
+            params['user'] = self.user
+            t = jinja_env.get_template(template)
+            return t.render(params)
 
-        if self.request.url.endswith('.json'):
-            self.format = 'json'
-        else:
-            self.format = 'html'
+        def render(self, template, **kw):
+            self.write(self.render_str(template, **kw))
 
+        def render_json(self, d):
+            json_txt = json.dumps(d)
+            self.response.headers['Content-Type'] = 'application/json; charset=UTF-8'
+            self.write(json_txt)
+
+        def set_secure_cookie(self, name, val):
+            cookie_val = make_secure_val(val)
+            self.response.headers.add_header(
+                'Set-Cookie',
+                '%s=%s; Path=/' % (name, cookie_val))
+
+        def read_secure_cookie(self, name):
+            cookie_val = self.request.cookies.get(name)
+            return cookie_val and check_secure_val(cookie_val)
+
+        def login(self, user):
+            self.set_secure_cookie('user_id', str(user.key().id()))
+
+        def logout(self):
+            self.response.headers.add_header('Set-Cookie', 'user_id=; Path=/')
+
+        def initialize(self, *a, **kw):
+            webapp2.RequestHandler.initialize(self, *a, **kw)
+            uid = self.read_secure_cookie('user_id')
+            self.user = uid and User.by_id(int(uid))
+
+            if self.request.url.endswith('.json'):
+                self.format = 'json'
+            else:
+                self.format = 'html'
 
 class MainPage(BlogHandler):
-    def get(self):
-        self.render("index.html")
+      def get(self):
+          self.write('Hello, Udacity!')
 
+    ##### user stuff
+def make_salt(length = 5):
+        return ''.join(random.choice(letters) for x in xrange(length))
 
-class Signup(BlogHandler):
+def make_pw_hash(name, pw, salt = None):
+        if not salt:
+            salt = make_salt()
+        h = hashlib.sha256(name + pw + salt).hexdigest()
+        return '%s,%s' % (salt, h)
 
-    def get(self):
-      self.render("signup.html")
+def valid_pw(name, password, h):
+        salt = h.split(',')[0]
+        return h == make_pw_hash(name, password, salt)
 
-    def post(self):
-        have_error = False
-        self.username = self.request.get('username')
-        self.password = self.request.get('password')
-        self.verify = self.request.get('verify')
-        self.email = self.request.get('email')
+def users_key(group = 'default'):
+        return db.Key.from_path('users', group)
 
-        params = dict(username = self.username,
-                      email = self.email)
+class User(db.Model):
+        name = db.StringProperty(required = True)
+        pw_hash = db.StringProperty(required = True)
+        email = db.StringProperty()
 
-        if not valid_username(self.username):
-            params['username_error'] = "That's not a valid username."
-            have_error = True
+        @classmethod
+        def by_id(cls, uid):
+            return User.get_by_id(uid, parent = users_key())
 
-        if not valid_password(self.password):
-            params['password_error'] = "That wasn't a valid password."
-            have_error = True
-        elif self.password != self.verify:
-            params['verify_error'] = "Your passwords didn't match."
-            have_error = True
+        @classmethod
+        def by_name(cls, name):
+            u = User.all().filter('name =', name).get()
+            return u
 
-        if not valid_email(self.email):
-            params['error_email'] = "That's not a valid email."
-            have_error = True
+        @classmethod
+        def register(cls, name, pw, email = None):
+            pw_hash = make_pw_hash(name, pw)
+            return User(parent = users_key(),
+                        name = name,
+                        pw_hash = pw_hash,
+                        email = email)
 
-        if have_error:
-            self.render("signup.html", **params)
-        else:
-            self.done()
+        @classmethod
+        def login(cls, name, pw):
+            u = cls.by_name(name)
+            if u and valid_pw(name, pw, u.pw_hash):
+                return u
 
-    def done(self,*a,**kw):
-        raise NotImplementedError
+    ##### blog stuff
 
-class BlogSignup(Signup):
-    def done(self):
-        #Make sure the user doesn't already exist
-        u = User.by_name(self.username)
-        if u:
-            msg = "That user already exists"
-            self.render('signup.html', username_error = msg)
-        else:
-            u = User.register(self.username, self.password, self.email)
-            u.put()
+def blog_key(name = 'default'):
+        return db.Key.from_path('blogs', name)
 
-            self.login(u)
-            self.redirect('/welcome')
-
-class Login(BlogHandler):
-    def get(self):
-      self.render("login.html")
-
-    def post(self):
-        username = self.request.get('username')
-        password = self.request.get('password')
-
-        u = User.login(username,password)
-        if  u:
-            # Set cookie
-            self.login(u)
-            self.redirect('/welcome')
-        else:
-            msg = "Invalid Login"
-            self.render("login.html",error = msg)
-      
-class Logout(BlogHandler):
-    def get(self):
-        self.logout()
-        self.redirect('/signup')
-
-
-# Was used for a lot of testing, may not be needed
-class Welcome(BlogHandler):
-    def get(self):
-        if self.user:
-            self.render('welcome.html', username = self.user.name)
-        else:
-            self.redirect('/signup')
-
-class BlogNewPost(BlogHandler):
-    def get(self):
-        self.render("newBlogPost.html")
-
-    def post(self):
-        subject = self.request.get("subject")
-        content = self.request.get("content")
-
-
-        params = dict(subject = subject,
-                      content = content)
-
-        if (subject and content):
-            b = BlogEntry(subject=subject,blogtext=content)
-            b_key = b.put()
-            self.redirect("%d" % b_key.id())
-        else:
-            params["error"] = "Need to fill out all fields..."
-            self.render("newBlogPost.html",**params)
-
-class BlogPermalink(BlogHandler):
-    def get(self,blog_id):
-        s = BlogEntry.get_by_id(int(blog_id))
-        self.render("blog.html",blogs=[s])
-
-def age_set(key,val):
-    memcache.set(key,(val,datetime.utcnow()))
+def age_set(key, val):
+        save_time = datetime.utcnow()
+        memcache.set(key, (val, save_time))
 
 def age_get(key):
-    result = memcache.get(key)
-    if result:
-        val, save_time = result
-        age = (datetime.utcnow() - save_time).total_seconds()
-    else:
-        val,age = None, 0
-    return val,age
+        r = memcache.get(key)
+        if r:
+            val, save_time = r
+            age = (datetime.utcnow() - save_time).total_seconds()
+        else:
+            val, age = None, 0
+        return val, age
 
-def add_post(post):
-    post.put()
-    get_posts(update = True) 
-    return str(post.key().id())
+def add_post(ip, post):
+        post.put()
+        get_posts(update = True)
+        return str(post.key().id())
 
 def get_posts(update = False):
-    q = db.GqlQuery("SELECT * FROM BlogEntry ORDER BY created DESC")
-    mc_key = "BLOGS"
+        q = greetings = Post.all().order('-created').fetch(limit = 10)
+        mc_key = 'BLOGS'
 
-    posts, age = age_get(mc_key)
-    if update or posts is None: 
-        posts = list(q)
-        age_set(mc_key,posts)
-
-    return posts,age
+        posts, age = age_get(mc_key)
+        if update or posts is None:
+            posts = list(q)
+            age_set(mc_key, posts)
+        return posts, age
 
 def age_str(age):
-    s = "queried %s seconds ago"
-    age = int(age)
-    if age == 1:
-        s = s.replace("seconds", "second")
-    return s % age
+        s = 'queried %s seconds ago'
+        age = int(age)
+        if age == 1:
+            s = s.replace('seconds', 'second')
+        return s % age
 
-class Blog(BlogHandler):
-    def get(self):
-        posts,age = get_posts()
-        if self.format == "html":
-            self.render("blog.html",blogs=posts, age = age_str(age))
-        else:
-            return self.render_json([p.as_dict() for p in posts])        
+def blog_flush():
+        memcache.flush_all()
+        memcache.flush_all()
 
+class FlushHandler(BlogHandler):
+        def get(self):
+            blog_flush()
 
-        key = "blogs"
-        blogs, age = memcache.get(key)
-        if blogs is None:
-            s = db.GqlQuery("SELECT * FROM BlogEntry ORDER BY created DESC")
-            blogs = list(blogs)
-            memcache.set(key,blogs)
-        self.render("blog.html",blogs=s)
+            self.redirect('/blog')
 
-class JsonPostHandler(BlogHandler):
-    def get(self):
-        list = []
-        blogs = db.GqlQuery("SELECT * FROM BlogEntry ORDER BY created DESC LIMIT 10")
-        for blog in blogs:
-            blogDict = {}
-            blogDict["content"] = blog.blogtext
-            blogDict["created"] = blog.created.strftime("%a %b %d %H:%M:%S %Y")
-           # blogDict["last_modified"] = blog.last_modified.strftime("%a %b %d %H:%M:%S %Y")
-            blogDict["subject"] = blog.subject
-            list.append(blogDict)
-        self.render_json(list)
+class Post(db.Model):
+        subject = db.StringProperty(required = True)
+        content = db.TextProperty(required = True)
+        created = db.DateTimeProperty(auto_now_add = True)
+        last_modified = db.DateTimeProperty(auto_now = True)
 
-class NewPostJson(BlogHandler):
-    def get(self,blog_id):
-        s = BlogEntry.get_by_id(int(blog_id))
-        blogDict = {}
-        blogDict["content"] = s.blogtext
-        blogDict["created"] = s.created.strftime("%a %b %d %H:%M:%S %Y")
-        # blogDict["last_modified"] = blog.last_modified.strftime("%a %b %d %H:%M:%S %Y")
-        blogDict["subject"] = s.subject
-        self.render_json(blogDict)
+        def render(self):
+            self._render_text = self.content.replace('\n', '<br>')
+            self.subject=("<a href='/blog/"+str(self.key().id())+"'>"+str(self.subject)+"</a>")
+            logging.info("self render")
+            logging.info(self._render_text)
+            return render_str("post.html", p = self)
 
+        def as_dict(self):
+            time_fmt = '%c'
+            d = {'subject': self.subject,
+                 'content': self.content,
+                 'created': self.created.strftime(time_fmt),
+                 'last_modified': self.last_modified.strftime(time_fmt)}
+            return d
 
+class BlogFront(BlogHandler):
+        def get(self):
+            #posts = greetings = Post.all().order('-created')
+            posts, age = get_posts()
+            if self.format == 'html':
+                self.render('front.html', posts = posts, age = age_str(age))
+            else:
+                return self.render_json([p.as_dict() for p in posts])
 
-###############################################
-# Regular Expression Validation
-###############################################
+class PostPage(BlogHandler):
+        def get(self, post_id):
+            #key = db.Key.from_path('Post', int(post_id), parent=blog_key())
+            #post = db.get(key)
+            post_key ='POST_' + post_id
+            link=self.request.uri
+            logging.info(link)
+
+            post, age = age_get(post_key)
+            if not post:
+                key = db.Key.from_path('Post', int(post_id), parent=blog_key())
+                post = db.get(key)
+                age_set(post_key, post)
+                age = 0
+
+            if not post:
+                self.error(404)
+                return
+            if self.format == 'html':
+                self.render("permalink.html", post = post, age = age_str(age))
+            else:
+                self.render_json(post.as_dict())
+
+class NewPost(BlogHandler):
+        def get(self):
+
+            if self.user:
+                self.render("newpost.html")
+            else:
+                self.redirect("/blog/login")
+
+        def post(self):
+
+            if not self.user:
+                self.redirect('/blog')
+
+            subject = self.request.get('subject')
+            content = self.request.get('content')
+
+            if subject and content:
+                p = Post(parent = blog_key(), subject = subject, content = content)
+                p.put()
+                posts, age = get_posts(True)
+                #add_post(p)
+                self.redirect('/blog/%s' % str(p.key().id()))
+            else:
+                error = "subject and content, please!"
+                self.render("newpost.html", subject=subject, content=content, error=error)
+
 USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
 def valid_username(username):
-    return username and USER_RE.match(username)
+        return username and USER_RE.match(username)
 
 PASS_RE = re.compile(r"^.{3,20}$")
 def valid_password(password):
-    return password and PASS_RE.match(password)
+        return password and PASS_RE.match(password)
 
 EMAIL_RE  = re.compile(r'^[\S]+@[\S]+\.[\S]+$')
 def valid_email(email):
-    return not email or EMAIL_RE.match(email)
-################################################
+        return not email or EMAIL_RE.match(email)
 
-###############################################
-# Hash Functions | Salt Functions
-###############################################
-def hash_str(s):
-    return hashlib.md5(s).hexdigest()
+class Signup(BlogHandler):
+        def get(self):
+            self.render("signup-form.html")
 
-def make_secure_val(s):
-    return "%s|%s" % (s, hmac.new(secret,s).hexdigest())
+        def post(self):
+            have_error = False
+            self.username = self.request.get('username')
+            self.password = self.request.get('password')
+            self.verify = self.request.get('verify')
+            self.email = self.request.get('email')
 
+            params = dict(username = self.username,
+                          email = self.email)
 
-def check_secure_val(secure_val):
-    val = secure_val.split("|")[0]
-    if secure_val == make_secure_val(val):
-        return val
+            if not valid_username(self.username):
+                params['error_username'] = "That's not a valid username."
+                have_error = True
 
-def make_salt(length = 5):
-    return "".join(random.choice(letters) for x in xrange(length))
+            if not valid_password(self.password):
+                params['error_password'] = "That wasn't a valid password."
+                have_error = True
+            elif self.password != self.verify:
+                params['error_verify'] = "Your passwords didn't match."
+                have_error = True
 
-def make_pw_hash(name,pw,salt = None):
-    if not salt:
-        salt = make_salt()
-    h = hashlib.sha256(name + pw + salt).hexdigest()
-    return '%s,%s' % (salt,h)
+            if not valid_email(self.email):
+                params['error_email'] = "That's not a valid email."
+                have_error = True
 
-def valid_pw(name,password,h):
-    salt = h.split(',')[0]
-    return h == make_pw_hash(name,password,salt)
+            if have_error:
+                self.render('signup-form.html', **params)
+            else:
+                self.done()
 
-#optional
-def users_key(group = "default"):
-    return db.Key.from_path('users',group)
+        def done(self, *a, **kw):
+            raise NotImplementedError
 
-############################
-# DB Objects
-###########################
+class Unit2Signup(Signup):
+        def done(self):
+            self.redirect('/unit2/welcome?username=' + self.username)
 
-class BlogEntry(db.Model):
-    subject = db.StringProperty(required=True)
-    blogtext = db.TextProperty(required=True)
-    created = db.DateTimeProperty(auto_now_add=True)
+class Register(Signup):
+        def done(self):
+            #make sure the user doesn't already exist
+            u = User.by_name(self.username)
+            if u:
+                msg = 'That user already exists.'
+                self.render('signup-form.html', error_username = msg)
+            else:
+                u = User.register(self.username, self.password, self.email)
+                u.put()
 
-class User(db.Model):
-    name = db.StringProperty(required = True)
-    pw_hash = db.StringProperty(required = True)
-    email = db.StringProperty()
+                self.login(u)
+                self.redirect('/unit3/welcome')
 
-    #Declarator, call this method on this object
-    # This is the alternative to GQL
-    @classmethod
-    def by_id(cls,uid):
-        return cls.get_by_id(uid,parent=users_key())
+class Login(BlogHandler):
+        def get(self):
+            self.render('login-form.html')
 
-    @classmethod
-    def by_name(cls,name):
-        u = cls.all().filter('name = ', name).get()
-        return u
+        def post(self):
+            username = self.request.get('username')
+            password = self.request.get('password')
 
-    @classmethod
-    def register(cls,name,pw,email = None):
-        pw_hash = make_pw_hash(name,pw)
-        return User(parent = users_key(),
-                    name = name,
-                    pw_hash = pw_hash,
-                    email = email)
+            u = User.login(username, password)
+            if u:
+                self.login(u)
+                self.redirect('/unit3/welcome')
+            else:
+                msg = 'Invalid login'
+                self.render('login-form.html', error = msg)
 
-    @classmethod
-    def login(cls,name,pw):
-        u = cls.by_name(name)
-        if u and valid_pw(name,pw,u.pw_hash):
-            return u
+class Logout(BlogHandler):
+        def get(self):
+            self.logout()
+            self.redirect('/blog/signup')
 
+class Unit3Welcome(BlogHandler):
+        def get(self):
+            if self.user:
+                self.render('welcome.html', username= self.user.name)
+            else:
+                self.redirect('/blog/signup')
 
-app = webapp2.WSGIApplication([('/', Blog),
-                               ('/signup',BlogSignup),
-                               ('/login',Login),
-                               ('/logout',Logout),
-                               ('/welcome',Welcome),
-                               ('/newpost',BlogNewPost),
-                               ('/(\d+)',BlogPermalink),
-                               ('/.json',JsonPostHandler),
-                               ('/(\d+).json',NewPostJson)
-                               ],
-                               debug=True)
+class Welcome(BlogHandler):
+        def get(self):
+            username = self.request.get('username')
+            if valid_username(username):
+                self.render('welcome.html', username = username)
+            else:
+                self.redirect('/unit2/signup')
+
+app = webapp2.WSGIApplication([('/', MainPage),
+                                   ('/unit2/signup', Unit2Signup),
+                                   ('/unit2/welcome', Welcome),
+                                   ('/blog/?(?:.json)?', BlogFront),
+                                   ('/blog/([0-9]+)(?:.json)?', PostPage),
+                                   ('/blog/newpost', NewPost),
+                                   ('/blog/signup', Register),
+                                   ('/blog/login', Login),
+                                   ('/blog/logout', Logout),
+                                   ('/unit3/welcome', Unit3Welcome),
+                                                               ('/blog/flush', FlushHandler),
+                                   ],
+                                  debug=True)
